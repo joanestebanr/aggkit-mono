@@ -96,7 +96,7 @@ both are present). This exists purely as a local-dev/Playwright convenience, so
 (see that file's own header comment), so a published Docker image never has an override to
 fall back to and always reads the mounted `config.json`'s value — exactly the property the
 two-configs-one-image proof in `docs/docker.md` demonstrates. The Cloudflare Workers
-deploy path is unaffected: `deploy.yaml` sets `NEXT_PUBLIC_PROJECT_ID` as a real build-time
+deploy path is unaffected: `devui-deploy.yml` sets `NEXT_PUBLIC_PROJECT_ID` as a real build-time
 secret, which still takes effect there since that path has no runtime config bind mount at
 all — the entire app config, including `walletConnect.projectId`, is decided once at build
 time for that deployment target.

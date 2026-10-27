@@ -9,7 +9,6 @@ on:
   # No `paths` filter on pull_request: a skipped workflow would leave required
   # checks pending forever. Path selection is done by the `changes` job instead.
   pull_request:
-    branches: [develop, main]
 
 permissions:
   contents: read
@@ -81,6 +80,10 @@ jobs:
     needs: [changes, test]
     if: always()
     runs-on: ubuntu-latest
+    # No checkout in this job, so the workflow-level working-directory does not apply.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Verify results
         run: |

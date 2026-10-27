@@ -68,7 +68,7 @@
 // down && up -d --wait` + `node scripts/devnetReady.mjs` fully recovered
 // it (chain state resets to the settlement-free baked snapshot). A nightly
 // job that starts from a **freshly booted** devnet (as
-// `.github/workflows/loadtest-e2e.yaml` does, mirroring `e2e.yaml`) should
+// `.github/workflows/devui-loadtest-e2e.yml` does, mirroring `devui-e2e.yml`) should
 // not hit this — it is a long-lived-devnet hazard, not a per-run one — but
 // if this test ever times out on the manual-claim hop, check
 // `{proxy}/aggkitapi/tracker/v1/activity/from/{addr}?includeTracking=true`'s

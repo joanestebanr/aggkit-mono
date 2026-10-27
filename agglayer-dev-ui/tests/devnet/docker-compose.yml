@@ -3,7 +3,7 @@
 # Vendored from 0xPolygon/kurtosis-cdk (branch chore/devui-snapshot-aggkit-rc17)
 # @ a8301d050c683d08711513a286ce530f1010089f. See ./README.md for the full
 # regenerate-and-bump procedure -- do not hand-edit an image reference below
-# without following it (E2E_ERC20_ADDRESS in .github/workflows/e2e.yaml is
+# without following it (E2E_ERC20_ADDRESS in .github/workflows/devui-e2e.yml is
 # nonce-dependent per snapshot and MUST be bumped in lockstep if it changes).
 #
 # Publish run this bundle came from:

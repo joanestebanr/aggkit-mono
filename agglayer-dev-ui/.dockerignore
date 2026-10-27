@@ -7,7 +7,7 @@ out
 # `**/.git` (not just `.git`): a .dockerignore pattern is matched against the
 # whole path relative to the context root, so a bare `.git` excludes ONLY the
 # top-level one -- this form also keeps any nested checkout's history out of
-# the build context (and, with docker-pr.yaml's `cache-to:
+# the build context (and, with devui-docker-pr.yml's `cache-to:
 # type=gha,mode=max`, out of the Actions cache).
 **/.git
 test-results

@@ -60,7 +60,7 @@
 // minutes wall-clock. Budgeted here at up to 90 minutes for the `run` step
 // alone (a stuck manual-claim hop can occupy the derived `hopMs`/`lapMs`
 // budget before its own timeout fires) — see `.github/workflows/
-// loadtest-e2e.yaml`'s `timeout-minutes`, raised alongside this file so the
+// devui-loadtest-e2e.yml`'s `timeout-minutes`, raised alongside this file so the
 // nightly job isn't cut off before a legitimately slow (not stuck) run
 // finishes.
 //

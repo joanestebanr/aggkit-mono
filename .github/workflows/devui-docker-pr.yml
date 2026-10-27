@@ -25,7 +25,6 @@ name: Docker PR Build and Smoke Test
 
 on:
   pull_request:
-    branches: [develop, main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

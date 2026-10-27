@@ -109,7 +109,7 @@ jobs:
           check() {
             local label="$1" expected="$2" actual="$3"
             if [ "$expected" != "$actual" ]; then
-              echo "::error::$label drift: loadtest-devui-e2e.yml has '$actual', tests/devnet/summary.json has '$expected'. Bump them together (see tests/devnet/README.md)." >&2
+              echo "::error::$label drift: devui-loadtest-e2e.yml has '$actual', tests/devnet/summary.json has '$expected'. Bump them together (see tests/devnet/README.md)." >&2
               fail=1
             else
               echo "ok: $label = $actual"

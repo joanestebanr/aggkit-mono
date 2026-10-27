@@ -52,7 +52,7 @@ COPY . .
 # public/version.json reflects the real commit and released version instead
 # of falling back to "unknown" / package.json's untouched placeholder. This
 # stage has no .git directory (see the HUSKY=0 comment above), so a build
-# pipeline that knows both -- e.g. docker-publish.yaml, which already
+# pipeline that knows both -- e.g. devui-docker-publish.yml, which already
 # resolves the built SHA and the release/dispatch tag for image tagging --
 # must pass them in as build args; unset here (a plain `docker build .`)
 # writeVersionInfo.mjs falls back to "unknown" / package.json as before.

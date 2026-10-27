@@ -244,12 +244,12 @@ hard GitHub Actions rule, not specific to this repo: both the `release` and
 is present on the default branch — GitHub does not honor either trigger for a workflow
 that exists only on a feature branch.
 
-As of this writing, `docker-publish.yaml` exists only on `feat/aggkit-backend` (not yet
+As of this writing, `devui-docker-publish.yml` exists only on `feat/aggkit-backend` (not yet
 merged to `main`), and this is exactly what the first real dispatch attempt hit:
 
 ```
-$ gh workflow run docker-publish.yaml --repo agglayer/agglayer-dev-ui --ref feat/aggkit-backend
-HTTP 404: workflow docker-publish.yaml not found on the default branch
+$ gh workflow run devui-docker-publish.yml --repo agglayer/agglayer-dev-ui --ref feat/aggkit-backend
+HTTP 404: workflow devui-docker-publish.yml not found on the default branch
 (https://api.github.com/repos/agglayer/agglayer-dev-ui/actions/workflows/devui-docker-publish.yml)
 ```
 
@@ -270,7 +270,7 @@ and pushes the image with the tag set described above. Mark the release as a Git
 "prerelease" (or use a semver `-suffix`, e.g. `1.2.3-rc.1`) if it should not move
 `latest` or the `X.Y` tag.
 
-**This only works once `docker-publish.yaml` is merged to `main`** — see "Prerequisite
+**This only works once `devui-docker-publish.yml` is merged to `main`** — see "Prerequisite
 for either path" above. Publishing a GitHub Release while the workflow file exists only
 on a feature branch will not trigger a build.
 
@@ -280,10 +280,10 @@ You can also build and publish an image from any branch, tag, or full commit SHA
 **already reachable in the repository** by running the workflow via
 `workflow_dispatch`, passing the desired revision as the `ref` input.
 
-**Documented limitation: `workflow_dispatch` requires `docker-publish.yaml` to already be
+**Documented limitation: `workflow_dispatch` requires `devui-docker-publish.yml` to already be
 merged to `main`.** See "Prerequisite for either path" above — this is a separate
 constraint from the bare-SHA one below, and it is the one that actually blocked the
-first real dispatch attempt (`HTTP 404: workflow docker-publish.yaml not found on the
+first real dispatch attempt (`HTTP 404: workflow devui-docker-publish.yml not found on the
 default branch`). Merging the workflow file to `main` is required before any dispatch
 can be fired at all, regardless of which branch/tag/SHA you intend to pass as the `ref`
 input.
@@ -304,7 +304,7 @@ input.
 
 ```bash
 git push origin HEAD:my-temp-branch
-gh workflow run docker-publish.yaml --ref my-temp-branch -f ref=my-temp-branch
+gh workflow run devui-docker-publish.yml --ref my-temp-branch -f ref=my-temp-branch
 ```
 
 Dispatch builds are tagged `dispatch-<ref>-<sha>-<run_id>` and can never collide with a
@@ -360,10 +360,10 @@ be explained, not silently made:
   scheme" above).
 - **Workflow logic inline, not under `.github/scripts/`** (deviates from
   `docs/team-standards.md:105-109`, "Keep workflow YAML thin"). The tag-computation and
-  smoke-test logic in `docker-publish.yaml` lives inline in `run:` steps rather than in a
+  smoke-test logic in `devui-docker-publish.yml` lives inline in `run:` steps rather than in a
   separate script file. Accepted as a one-workflow-file exception; the logic is under 70
   lines total and heavily commented in place.
-- **`concurrency.cancel-in-progress: false`**, unlike this repo's `deploy.yaml`/
-  `e2e.yaml` (`.github/workflows/devui-docker-publish.yml:62-70`). A cancelled build mid-push
+- **`concurrency.cancel-in-progress: false`**, unlike this repo's `devui-deploy.yml`/
+  `devui-e2e.yml` (`.github/workflows/devui-docker-publish.yml:62-70`). A cancelled build mid-push
   could leave a partially-written manifest or tag in GHCR; overlapping runs (e.g. a
   release publish racing a manual dispatch) queue and run strictly serially instead.

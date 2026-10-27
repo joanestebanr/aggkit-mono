@@ -38,12 +38,12 @@ categories above -- anything else is a hand-edit, and a bug.
 
 - `docker-compose.yml` — self-contained (no bind mounts, no volumes); every
   service's chain state, config and keystores are baked into its image.
-  `.github/workflows/e2e.yaml` brings it up with
+  `.github/workflows/devui-e2e.yml` brings it up with
   `docker compose -f tests/devnet/docker-compose.yml up -d --wait`.
 - `summary.json` — a machine-readable description of the bundle (chain ids,
   contract addresses, the funded E2E wallet, the seeded ERC20, image names,
   digests and human-readable sizes). Several `E2E_*` values in
-  `.github/workflows/e2e.yaml` are copied from it; the workflow's "Assert
+  `.github/workflows/devui-e2e.yml` are copied from it; the workflow's "Assert
   workflow literals match tests/devnet/summary.json" step fails the job if
   they drift. `.erc20_address` in particular is **nonce-dependent** and can
   differ on every regenerated snapshot. `summary.json` does **not** carry
@@ -159,7 +159,7 @@ under you and breaks the "pin exact versions in CI" contract).
    grep -n 'image:' tests/devnet/docker-compose.yml
    ```
 
-5. **Bump `E2E_ERC20_ADDRESS`** in `.github/workflows/e2e.yaml`'s job `env:`
+5. **Bump `E2E_ERC20_ADDRESS`** in `.github/workflows/devui-e2e.yml`'s job `env:`
    block to the new `summary.json`'s `.erc20_address`:
 
    ```bash
@@ -201,13 +201,13 @@ under you and breaks the "pin exact versions in CI" contract).
 7. **Run the actual specs locally** against the new bundle before committing
    (at minimum preflight; ideally the full `tests/bridge` suite once — see
    the main README's "Testing" section for the full env var list this
-   workflow's `env:` block mirrors). If the built-image path in `e2e.yaml`
+   workflow's `env:` block mirrors). If the built-image path in `devui-e2e.yml`
    changed too, also rebuild and rerun `tests/container/` locally (see the
-   main README/`e2e.yaml` for the `docker build` + `playwright.container.config.ts`
+   main README/`devui-e2e.yml` for the `docker build` + `playwright.container.config.ts`
    invocation).
 
 8. **Commit `tests/devnet/docker-compose.yml`, `tests/devnet/summary.json`,
-   and the literal bumps in `.github/workflows/e2e.yaml` together, in the
+   and the literal bumps in `.github/workflows/devui-e2e.yml` together, in the
    same commit.** These must never drift independently. The workflow's
    "Assert workflow literals match tests/devnet/summary.json" step is the
    automated backstop: it compares the `E2E_*` literals and the compose

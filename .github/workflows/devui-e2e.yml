@@ -3,7 +3,6 @@ name: E2E Playwright Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [develop, main]
   workflow_dispatch:
 
 concurrency:
@@ -29,6 +28,7 @@ jobs:
           persist-credentials: false
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         with:
           filters: |
             devui:

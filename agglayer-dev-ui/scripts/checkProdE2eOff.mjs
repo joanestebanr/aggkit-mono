@@ -7,7 +7,7 @@
 // Surfaces (a build-time var reaches the bundle only through these):
 //   - .env.production                      (copied over .env.local by
 //                                           build:production / the Dockerfile)
-//   - .github/workflows/deploy.yaml        (Cloudflare Workers deploy; its
+//   - .github/workflows/devui-deploy.yml        (Cloudflare Workers deploy; its
 //                                           env: values are build-time env)
 //   - Dockerfile                           (the production image; Dockerfile
 //                                           .loadtest is a test-harness image
@@ -33,10 +33,10 @@ import { pathToFileURL } from 'node:url';
 const E2E_KEY = 'NEXT_PUBLIC_E2E_ENABLED';
 
 // The production surfaces this repo actually ships. Keys are descriptive
-// labels; values are repo-root-relative paths.
+// labels; values are paths relative to this project folder.
 const PROD_SURFACES = [
   { kind: 'env-file', path: '.env.production' },
-  { kind: 'workflow-env', path: '.github/workflows/deploy.yaml' },
+  { kind: 'workflow-env', path: '../.github/workflows/devui-deploy.yml' },
   { kind: 'dockerfile', path: 'Dockerfile' }
 ];
 
@@ -106,7 +106,7 @@ const run = async () => {
         'assignment(s):',
         ...failures.map((f) => `  - ${f}`),
         "Remove the assignment (or set it explicitly to 'false'). E2E builds set",
-        `${E2E_KEY}=true in .github/workflows/e2e.yaml only.`
+        `${E2E_KEY}=true in .github/workflows/devui-e2e.yml only.`
       ].join('\n') + '\n'
     );
     process.exitCode = 1;

@@ -11,7 +11,7 @@ vendored compose devnet exists only on that branch. Verified:
 **empty** and the entire deliverable is an uncommitted working tree (11 modified
 tracked files + the new `loadtest/`, `tests/loadtest-e2e/`,
 `app/context/e2eAccount.test.ts`, `playwright.loadtest.config.ts`,
-`.github/workflows/loadtest-e2e.yaml`). Everything below was audited as new
+`.github/workflows/devui-loadtest-e2e.yml`). Everything below was audited as new
 files against `git diff HEAD` plus the untracked trees. ~19 800 lines reviewed.
 
 **Baseline re-verified:** `pnpm run check` = **550 passed / 550**, 43 files;

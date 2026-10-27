@@ -141,7 +141,7 @@ export E2E_ERC20_ADDRESS="$(jq -r .erc20_address tests/devnet/summary.json)"
 # the values above and will silently point the suite at a dead ephemeral
 # enclave port. Remove or rename it first if you have one.
 
-# Run the suite (same invocations e2e.yaml uses).
+# Run the suite (same invocations devui-e2e.yml uses).
 pnpm exec playwright test tests/e2e/preflight.spec.ts
 pnpm exec playwright test tests/bridge
 

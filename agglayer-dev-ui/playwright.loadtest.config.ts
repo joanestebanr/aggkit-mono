@@ -28,7 +28,7 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // NOT part of `pnpm run check` or `pnpm run test:e2e` (both wired to
 // playwright.config.ts's default project) and NOT in the PR-blocking CI
-// matrix — see .github/workflows/loadtest-e2e.yaml (workflow_dispatch +
+// matrix — see .github/workflows/devui-loadtest-e2e.yml (workflow_dispatch +
 // nightly only). Requires the compose devnet up and
 // LOADTEST_DEVNET_FUNDER_KEY / LOADTEST_MNEMONIC exported — see
 // run.spec.ts's top-of-file doc comment.

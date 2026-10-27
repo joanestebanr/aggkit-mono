@@ -25,7 +25,7 @@ plain `wrangler deploy` does not handle on its own:
    the orphaned worker: (1) `custom_domain = true` on `dev-ui.agglayer.dev` while
    `bridge-hub-ui-production` still owns that domain — a custom domain binds to one
    worker, so the first deploy either errors on the attach or steals the domain out
-   from under the live site; (2) deploy.yaml fires on push to main, so whatever the
+   from under the live site; (2) devui-deploy.yml fires on push to main, so whatever the
    cutover plan is, it executes the moment this merges. I'd like the sequencing written
    down (SPEC coordination included) before this leaves draft."* A Cloudflare custom
    domain can only be bound to one worker at a time, and this repo's deploy trigger
@@ -45,7 +45,7 @@ written down.
 
 Complete every item below before merging the PR that ships `wrangler.toml`'s new
 `name = "agglayer-dev-ui"` / `custom_domain` route to `main`. None of this can happen
-after the merge — `deploy.yaml` fires on push to `main` with no manual gate in
+after the merge — `devui-deploy.yml` fires on push to `main` with no manual gate in
 between (see Section 2).
 
 - [ ] **Create the `NEXT_PUBLIC_AGGKIT_PROXY` secret** in the `production` GitHub
@@ -83,7 +83,7 @@ between (see Section 2).
         runbook's rollback path (Section 4). Deleting it early forecloses that path for
         no benefit.
 - [ ] Confirm who from the dev-ui side will watch the `main` push and the resulting
-      `deploy.yaml` run live (Section 2) — the same person or someone in the same
+      `devui-deploy.yml` run live (Section 2) — the same person or someone in the same
       coordinated window as the SPEC contact above, not someone who checks in later.
 
 ## 2. Merge-time sequencing
@@ -112,7 +112,7 @@ and re-run via `workflow_dispatch` once fixed (no need to re-merge).
 
 ## 3. Post-deploy verification
 
-Once `deploy.yaml` finishes green, before telling the SPEC contact to delete the old
+Once `devui-deploy.yml` finishes green, before telling the SPEC contact to delete the old
 worker:
 
 - [ ] **The domain serves the new worker.** `curl -sI https://dev-ui.agglayer.dev/`

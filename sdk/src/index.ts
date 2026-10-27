@@ -1,0 +1,149 @@
+/**
+ * AggLayer SDK - Main SDK
+ *
+ * Main SDK that orchestrates different submodules
+ */
+
+import { NativeClient } from '@/native';
+import { SDK_MODES, type SDKConfig } from '@/types';
+import { CoreClient } from '@/core';
+import { DEFAULT_NETWORK } from './constants';
+
+// Re-export all types from centralized location
+export type * from './types';
+
+// Re-export constants and values
+export { SDK_MODES } from './types';
+export { TransactionStatus } from './types';
+
+// Re-export error classes
+export { ApiError } from './core/utils/apiError';
+
+// Re-export the standalone aggkit bridge-service module: S4's single-network
+// `AggkitBridgeClient`, plus S5's multi-network `AggkitBridgeAggregator`
+// (cross-network activity, claim-input orchestration, token-metadata
+// composition, and bridge tracking; see src/aggkit/index.ts).
+export {
+  AggkitBridgeClient,
+  AggkitBridgeAggregator,
+  AggkitApiError,
+} from './aggkit';
+export type {
+  AggkitApiErrorArgs,
+  AggkitBridgeClientConfig,
+  AggkitBridgesResult,
+  AggkitClaimsResult,
+  AggkitTokenMappingsResult,
+  AggkitBridge,
+  AggkitClaim,
+  AggkitClaimProof,
+  AggkitL1InfoTreeLeaf,
+  AggkitTokenMapping,
+  AggkitSyncStatus,
+  AggkitSyncStatusInfo,
+  AggkitHealthResponse,
+  AggkitErrorBody,
+  AggkitAggregatorConfig,
+  AggkitActivityBridge,
+  AggkitActivityClaim,
+  AggkitActivityItem,
+  AggkitActivityWarning,
+  AggkitActivityResult,
+  AggkitTokenMetadata,
+  AggkitTrackingStatus,
+  AggkitBridgeType,
+  AggkitBridgeLeafType,
+  AggkitBridgeStep,
+  AggkitStepStatus,
+  AggkitTrackerErrorType,
+  AggkitTrackerErrorTypeString,
+  AggkitCertificateStatus,
+  AggkitCertificateStatusString,
+  AggkitBridgeStatusEvent,
+  AggkitBridgeStatus,
+  AggkitTrackerErrorStep,
+  AggkitCertificateData,
+  AggkitWaitingGERUpdateResult,
+  AggkitWaitingLERUpdateResult,
+  AggkitPendingInclusionResult,
+  AggkitWaitL1SettledGERResult,
+  AggkitWaitingGERInjectionResult,
+  AggkitWaitingL1InfoLeafAvailableResult,
+  AggkitWaitingClaimResult,
+  AggkitBridgeStepResult,
+  AggkitBridgeStepPath,
+  AggkitClaimStatus,
+  AggkitTrackingData,
+  AggkitTrackerErrorData,
+} from './aggkit';
+
+const defaultConfig: SDKConfig = {
+  mode: [SDK_MODES.CORE],
+};
+
+export class AggLayerSDK {
+  private config: SDKConfig;
+
+  private core?: CoreClient;
+  private native?: NativeClient;
+
+  constructor(config: SDKConfig = defaultConfig) {
+    this.config = config;
+
+    /**
+     * by default only core is enabled
+     * if mode is not provided, only core is enabled
+     * if mode is provided, only the modules in the mode are enabled
+     * if mode is provided and core is not in the mode, core is not enabled
+     * if mode is provided and native is not in the mode, native is not enabled
+     * if mode is provided and core and native are in the mode, both are enabled
+     * if mode is provided and core and native are not in the mode, default to core only
+     */
+
+    if (!config.mode || (config.mode && config.mode.length === 0)) {
+      this.config.mode = ['CORE'];
+    }
+
+    // Initialize core submodule if enabled
+    if (this.config.mode?.includes(SDK_MODES.CORE)) {
+      this.core = new CoreClient(this.config?.core);
+    }
+
+    // Initialize native submodule if enabled
+    if (this.config.mode?.includes(SDK_MODES.NATIVE)) {
+      const nativeConfig = {
+        defaultNetwork: this.config.native?.defaultNetwork ?? DEFAULT_NETWORK,
+        ...(this.config.native?.chains && {
+          chains: this.config.native.chains,
+        }),
+        ...(this.config.native?.customRpcUrls && {
+          customRpcUrls: this.config.native.customRpcUrls,
+        }),
+      };
+
+      this.native = new NativeClient(nativeConfig);
+    }
+  }
+
+  /**
+   * Get core submodule
+   */
+  getCore(): CoreClient {
+    if (!this.core) {
+      throw new Error('Core module not initialized. Add "core" to mode array.');
+    }
+    return this.core;
+  }
+
+  /**
+   * Get native submodule
+   */
+  getNative(): NativeClient {
+    if (!this.native) {
+      throw new Error(
+        'NATIVE module not initialized. Add "native" to mode array.'
+      );
+    }
+    return this.native;
+  }
+}

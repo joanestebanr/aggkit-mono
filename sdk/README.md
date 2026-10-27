@@ -848,8 +848,8 @@ const multiChainSdk = new AggLayerSDK({
 
 ```bash
 # Clone the repository
-git clone https://github.com/agglayer/sdk.git
-cd sdk
+git clone https://github.com/joanestebanr/aggkit-mono.git
+cd aggkit-mono/sdk
 
 # Install dependencies (npm, yarn, or bun)
 npm install
@@ -1074,6 +1074,6 @@ tell "still pending" apart from "ready to claim": the tracker resolves
 
 **Built with ❤️ by the AggLayer Team**
 
-[⭐ Star us on GitHub](https://github.com/agglayer/sdk) • [🐛 Report Issues](https://github.com/agglayer/sdk/issues)
+[⭐ Star us on GitHub](https://github.com/joanestebanr/aggkit-mono/tree/develop/sdk) • [🐛 Report Issues](https://github.com/joanestebanr/aggkit-mono/issues)
 
 </div>

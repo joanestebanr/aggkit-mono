@@ -4,6 +4,11 @@ This is the consumption contract for the `agglayer-dev-ui` container image: what
 how to configure it, and how a new build gets published. It is written to stand alone —
 you should not need any other document in this repo to run the image.
 
+> **Monorepo note:** this project now lives in `agglayer-dev-ui/` of the aggkit monorepo. Its
+> workflows are `.github/workflows/devui-*.yml` at the monorepo root and, for now, publish/deploy
+> workflows are dispatch-only (the `release` trigger is removed). Line references below point at the
+> pre-monorepo files and may have drifted.
+
 ## Status: images are published via `workflow_dispatch`
 
 Multiple images have been published to GHCR from this branch via `workflow_dispatch`
@@ -22,7 +27,7 @@ ghcr.io/agglayer/agglayer-dev-ui:<tag>
 ### Tag scheme
 
 Tags are computed by the "Compute image tags" step in
-`.github/workflows/docker-publish.yaml:129-189`:
+`.github/workflows/devui-docker-publish.yml:129-189`:
 
 | Trigger | Tags produced |
 |---|---|
@@ -32,7 +37,7 @@ Tags are computed by the "Compute image tags" step in
 
 Every dispatch tag carries the literal `dispatch-` prefix, which cannot collide with a
 semver tag or with `latest` — see the workflow's header comment
-(`.github/workflows/docker-publish.yaml:29-44`) for why this is a structural guarantee,
+(`.github/workflows/devui-docker-publish.yml:29-44`) for why this is a structural guarantee,
 not just a runtime check (the workflow also asserts it at runtime as defense in depth).
 
 ## Ports
@@ -232,7 +237,7 @@ identically locally and in CI (`plans/dev-ui-docker-ghcr/d2-adr-dependency-strat
 
 ### Prerequisite for either path: the workflow must be on `main`
 
-**`.github/workflows/docker-publish.yaml` must be merged to this repo's default branch
+**`.github/workflows/devui-docker-publish.yml` must be merged to this repo's default branch
 (`main`) before either a release or a `workflow_dispatch` publish can occur.** This is a
 hard GitHub Actions rule, not specific to this repo: both the `release` and
 `workflow_dispatch` triggers are only registered against a workflow file once that file
@@ -245,7 +250,7 @@ merged to `main`), and this is exactly what the first real dispatch attempt hit:
 ```
 $ gh workflow run docker-publish.yaml --repo agglayer/agglayer-dev-ui --ref feat/aggkit-backend
 HTTP 404: workflow docker-publish.yaml not found on the default branch
-(https://api.github.com/repos/agglayer/agglayer-dev-ui/actions/workflows/docker-publish.yaml)
+(https://api.github.com/repos/agglayer/agglayer-dev-ui/actions/workflows/devui-docker-publish.yml)
 ```
 
 Contrast this with W-2's **PR-triggered** run, which executed successfully on this same
@@ -259,7 +264,7 @@ which branch, tag, or SHA the triggered run itself then checks out or builds.
 
 Publishing `ghcr.io/agglayer/agglayer-dev-ui:<tag>` happens automatically when a GitHub
 Release is published against this repo (`release: published` in
-`.github/workflows/docker-publish.yaml:47-49`). Cut a release the usual way (tag a
+`.github/workflows/devui-docker-publish.yml:47-49`). Cut a release the usual way (tag a
 commit `vX.Y.Z` or `X.Y.Z`, publish a GitHub Release against it) and the workflow builds
 and pushes the image with the tag set described above. Mark the release as a GitHub
 "prerelease" (or use a semver `-suffix`, e.g. `1.2.3-rc.1`) if it should not move
@@ -290,7 +295,7 @@ tag — GitHub uses that ref to decide which version of the workflow file to run
 API rejects a bare SHA there. This is a separate thing from the workflow's own `ref`
 input, which **is** just a string forwarded to `actions/checkout` and does accept a full
 commit SHA (the checkout uses `fetch-depth: 0` so an arbitrary SHA is resolvable). See
-`.github/workflows/docker-publish.yaml:9-19` for the full explanation.
+`.github/workflows/devui-docker-publish.yml:9-19` for the full explanation.
 
 **Net effect:** to publish an unreleased commit that has no branch or tag yet, push it to
 a branch (or tag it) first, then dispatch the workflow against that branch/tag, passing
@@ -343,7 +348,7 @@ be explained, not silently made:
   `docker-release-trigger.yml` → `apps-docker-release.yml` pipeline, which publishes to
   GCP Artifact Registry as part of the dry-dock/Kargo deployment path. This repo instead
   publishes directly to `ghcr.io/agglayer/agglayer-dev-ui` via its own
-  `.github/workflows/docker-publish.yaml`. Rationale: `agglayer-dev-ui` is a
+  `.github/workflows/devui-docker-publish.yml`. Rationale: `agglayer-dev-ui` is a
   self-hosted, operator-run artifact (like `ghcr.io/agglayer/aggkit`), not a GCP-deployed
   Polygon Labs backend service — there is no dry-dock stage or Kargo project for it, and
   GHCR is where its sibling `agglayer/*` images already live.
@@ -359,6 +364,6 @@ be explained, not silently made:
   separate script file. Accepted as a one-workflow-file exception; the logic is under 70
   lines total and heavily commented in place.
 - **`concurrency.cancel-in-progress: false`**, unlike this repo's `deploy.yaml`/
-  `e2e.yaml` (`.github/workflows/docker-publish.yaml:62-70`). A cancelled build mid-push
+  `e2e.yaml` (`.github/workflows/devui-docker-publish.yml:62-70`). A cancelled build mid-push
   could leave a partially-written manifest or tag in GHCR; overlapping runs (e.g. a
   release publish racing a manual dispatch) queue and run strictly serially instead.

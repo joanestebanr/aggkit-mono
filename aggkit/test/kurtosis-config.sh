@@ -22,10 +22,12 @@ trap 'cleanup' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Monorepo root (holds .github/); aggkit lives in a subfolder of it.
+REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 LOCAL_CONFIG_DIR="$SCRIPT_DIR/config"
 LOCAL_CONFIG_FILE="$LOCAL_CONFIG_DIR/aggkit-config.toml"
 KURTOSIS_TEMPLATE_REL_PATH="templates/aggkit/aggkit-config.toml"
-WORKFLOW_FILE="$PROJECT_ROOT/.github/workflows/test-e2e.yml"
+WORKFLOW_FILE="$REPO_ROOT/.github/workflows/aggkit-test-e2e.yml"
 KURTOSIS_CDK_REPO_URL="https://github.com/0xPolygon/kurtosis-cdk.git"
 TEMP_CLONE_DIR=""
 

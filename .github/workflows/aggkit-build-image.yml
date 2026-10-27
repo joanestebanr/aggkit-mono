@@ -18,6 +18,9 @@ jobs:
   build-aggkit-image:
     runs-on: amd-runner-2204
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: aggkit
     steps:
       - name: Checkout code
         uses: actions/checkout@v5

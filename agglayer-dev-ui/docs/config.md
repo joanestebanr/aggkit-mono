@@ -529,7 +529,7 @@ Never commit a `config.json` left in `"devnet"` mode.
 
 ### `config/config.ci.devnet.json` — the CI fixture
 
-`config/config.ci.devnet.json` is a **fixed-port** sibling of the committed `config.json`, used only by `.github/workflows/e2e.yaml`'s "Configure devnet fixture" step:
+`config/config.ci.devnet.json` is a **fixed-port** sibling of the committed `config.json`, used only by `.github/workflows/devui-e2e.yml`'s "Configure devnet fixture" step:
 
 ```bash
 cp config/config.ci.devnet.json config.json

@@ -1,8 +1,8 @@
+# Disabled in the monorepo experiment: dispatch only. Re-enable once tag prefixes and secrets are defined.
 name: Release Notification
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   notify-slack:

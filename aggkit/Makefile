@@ -22,6 +22,10 @@ LDFLAGS += -X 'github.com/agglayer/aggkit.GitRev=$(GITREV)'
 LDFLAGS += -X 'github.com/agglayer/aggkit.GitBranch=$(GITBRANCH)'
 LDFLAGS += -X 'github.com/agglayer/aggkit.BuildDate=$(DATE)'
 
+# Version stamp passed to docker builds (the build context has no .git, see Dockerfile)
+DOCKER_VERSION_ARGS := --build-arg VERSION="$(VERSION)" --build-arg GITREV="$(GITREV)" \
+	--build-arg GITBRANCH="$(GITBRANCH)" --build-arg DATE="$(DATE)"
+
 # Check dependencies
 .PHONY: check-go
 check-go: ## Check if golang is installed
@@ -140,15 +144,15 @@ $(GOBIN)/config_render:
 
 .PHONY: build-docker
 build-docker: ## Builds a docker image with the aggkit binary
-	docker build -t aggkit:local -t aggkit:local-no_shell -f ./Dockerfile .
+	docker build $(DOCKER_VERSION_ARGS) -t aggkit:local -t aggkit:local-no_shell -f ./Dockerfile .
 
 .PHONY: build-docker-ci
 build-docker-ci: ## Builds a docker image with the aggkit binary for CI (includes shell)
-	docker build --build-arg INCLUDE_SHELL=true -t aggkit:local -t aggkit:local-dev -f ./Dockerfile .
+	docker build $(DOCKER_VERSION_ARGS) --build-arg INCLUDE_SHELL=true -t aggkit:local -t aggkit:local-dev -f ./Dockerfile .
 
 .PHONY: build-docker-nc
 build-docker-nc: ## Builds a docker image with the aggkit binary - but without build cache
-	docker build --no-cache=true -t aggkit:local -t aggkit:local-no_shell -f ./Dockerfile .
+	docker build $(DOCKER_VERSION_ARGS) --no-cache=true -t aggkit:local -t aggkit:local-no_shell -f ./Dockerfile .
 
 .PHONY: build-docker-debug
 build-docker-debug: ## Builds a debug docker image (dlv headless on :40000, no optimizations)

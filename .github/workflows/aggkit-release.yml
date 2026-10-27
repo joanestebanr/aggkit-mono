@@ -1,11 +1,8 @@
+# Disabled in the monorepo experiment: dispatch only. Re-enable once tag prefixes and secrets are defined.
 name: Release
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*.*.*"
-      - "v*.*.*-*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -54,6 +51,15 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Compute version stamp
+        id: version
+        run: |
+          # The docker build context (aggkit/) has no .git, so pass the version info explicitly.
+          echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+          echo "gitrev=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "gitbranch=$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(LANG=US date +'%a, %d %b %Y %X %z')" >> "$GITHUB_OUTPUT"
 
       - name: Docker meta (prod)
         id: meta_prod
@@ -109,7 +115,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: aggkit
+          file: aggkit/Dockerfile
           push: false
           platforms: ${{ matrix.platform }}
           labels: ${{ (matrix.variant.suffix == '') && steps.meta_prod.outputs.labels || steps.meta_dev.outputs.labels }}
@@ -117,6 +124,10 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             INCLUDE_SHELL=${{ matrix.variant.include_shell }}
+            VERSION=${{ steps.version.outputs.version }}
+            GITREV=${{ steps.version.outputs.gitrev }}
+            GITBRANCH=${{ steps.version.outputs.gitbranch }}
+            DATE=${{ steps.version.outputs.date }}
           outputs: type=image,name=${{ (matrix.variant.suffix == '') && steps.image_builder_prod.outputs.IMAGE || steps.image_builder_dev.outputs.IMAGE }},push-by-digest=true,push=true
 
       - name: Verify version in image

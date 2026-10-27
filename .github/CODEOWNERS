@@ -1,1 +1,7 @@
-@agglayer/aggkit
+# Default owner (shared files: .github/, root README, ...)
+*                      @agglayer/aggkit
+
+/aggkit/               @agglayer/aggkit
+/agglayer-dev-ui/      @agglayer/polygon-application-team
+# TODO: define the owner team for /sdk/ (the source repo had no CODEOWNERS)
+/sdk/                  @agglayer/aggkit

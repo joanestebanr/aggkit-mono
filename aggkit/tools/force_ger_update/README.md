@@ -223,5 +223,5 @@ it is gated behind two env vars:
   unchanged.
 
 `make test-e2e-force_ger_update` sets both. CI runs this on a **dedicated job**
-(`test-go-e2e-force-ger-update` in `.github/workflows/test-go-e2e.yml`), on its own runner with its
+(`test-go-e2e-force-ger-update` in `.github/workflows/aggkit-test-go-e2e.yml`), on its own runner with its
 own environment bring-up, alongside — but independent from — the main `test-go-e2e` job.

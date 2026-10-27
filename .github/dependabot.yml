@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: gomod
-    directory: /
+    directory: /aggkit
     schedule:
       interval: weekly
     target-branch: develop
@@ -21,3 +21,21 @@ updates:
       - dependency-name: "buf.build/gen/go/agglayer/*"
     reviewers:
       - "agglayer/aggkit"
+  - package-ecosystem: npm
+    directory: /sdk
+    schedule:
+      interval: weekly
+    target-branch: develop
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /agglayer-dev-ui
+    schedule:
+      interval: weekly
+    target-branch: develop
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: develop
+    open-pull-requests-limit: 5

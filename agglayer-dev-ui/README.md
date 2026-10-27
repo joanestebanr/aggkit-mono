@@ -86,7 +86,7 @@ of E2E-only env vars.
 
 ### CI-devnet quick start (vendored compose, no Kurtosis toolchain)
 
-`.github/workflows/e2e.yaml` doesn't bring up a live Kurtosis enclave at all -- it
+`.github/workflows/devui-e2e.yml` doesn't bring up a live Kurtosis enclave at all -- it
 vendors a frozen, self-contained snapshot bundle (`tests/devnet/`, see
 [`tests/devnet/README.md`](tests/devnet/README.md)) produced by
 `0xPolygon/kurtosis-cdk`'s [anvil-flavor
@@ -121,10 +121,10 @@ pnpm run validate:config
 # playwright.config.ts THROWS unless these are set, and globalSetup falls
 # back to deploying its own ERC20 via `sudo docker run` without
 # E2E_ERC20_ADDRESS. Chain ids/ERC20 address are the exact literals
-# .github/workflows/e2e.yaml uses -- all public devnet fixtures, never
+# .github/workflows/devui-e2e.yml uses -- all public devnet fixtures, never
 # secrets. Keep them in sync with tests/devnet/summary.json (the workflow has
 # a step that asserts this). NEXT_PUBLIC_AGGKIT_PROXY is this config surface
-# cleanup's field -- .github/workflows/e2e.yaml (owned by a later step in this
+# cleanup's field -- .github/workflows/devui-e2e.yml (owned by a later step in this
 # migration) still sets the retired NEXT_PUBLIC_AGGKIT_BRIDGE_APIS literal as
 # of this writing; use NEXT_PUBLIC_AGGKIT_PROXY here regardless, since
 # playwright.config.ts now requires it.

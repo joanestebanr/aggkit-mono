@@ -66,7 +66,7 @@ Hard requirements (from the task owner):
 | Eth client types | `aggkittypes.BaseEthereumClienter` (`types/eth_client.go:38`) includes `ethereum.LogFilterer` (FilterLogs + SubscribeFilterLogs); prod dials HTTP only (`etherman/default_eth_client.go:47`) |
 | Tool conventions | `tools/<name>/` + `tools/<name>/cmd/main.go`; Makefile `build-tools` target + per-tool rule (Makefile:79-116); Dockerfile `COPY --from=builder /app/target/<name> /usr/local/bin/` (Dockerfile:57-62); closest analog: `tools/remove_ger` |
 | Simulated backend | `test/helpers/simulated.go`, `test/helpers/e2e.go` — `NewSimulatedL1(t)` deploys bridge proxy + `agglayerger` GER + rollup manager on `simulated.Backend` (chainID 1337); `test/helpers/ethtxmanmock_e2e.go` = mock ethtxmanager that actually sends via the simulated client |
-| Real e2e | `test/e2e/` Go suite against docker-compose env `op-pp` (`envs.LoadEnv`, `test/e2e/envs/loader.go`); funded key pool `env.Keys.L1Keys.Checkout()`; bridge tx example `test/e2e/bridge_utils.go:21-40` (`BridgeAsset(..., forceUpdateGER, nil)`); run via `make test-e2e` (needs docker); CI: `.github/workflows/test-go-e2e.yml` |
+| Real e2e | `test/e2e/` Go suite against docker-compose env `op-pp` (`envs.LoadEnv`, `test/e2e/envs/loader.go`); funded key pool `env.Keys.L1Keys.Checkout()`; bridge tx example `test/e2e/bridge_utils.go:21-40` (`BridgeAsset(..., forceUpdateGER, nil)`); run via `make test-e2e` (needs docker); CI: `.github/workflows/aggkit-test-go-e2e.yml` |
 | Lint/test | `make lint`, `make test-unit` (runs `-short`), `make generate-mocks`; testify with `require`; 120-char lines; wrapped errors `fmt.Errorf("...: %w", err)` |
 
 ---
@@ -260,7 +260,7 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
 - **Status:** done
 - **Goal:** Add `test/e2e/forcegerupdate_test.go` running against the docker-compose `op-pp` env: build the tool binary (`make build-force_ger_update`), render a config file into a temp dir (L1 RPC + bridge/GER addresses from `env` / `summary.json`, a funded key from `env.Keys.L1Keys.Checkout()` written as a keystore or reuse an existing env keystore, threshold ~30s, sqlite in temp dir), **exec the real binary** as a subprocess, then: (1) record the latest `UpdateL1InfoTree` block; (2) wait past the threshold; (3) assert a new `UpdateL1InfoTree` event appears whose tx is a `bridgeMessage` (selector `0x240ff378`) from the tool's sender address to the bridge; (4) kill the process, assert clean exit. Follow the style of `removeger_test.go` / `bridge_utils.go`.
 - **Non-goals:** No kurtosis/bats suite, no CI workflow changes (note it as follow-up in the log if `test-go-e2e.yml` needs nothing — it globs `./test/e2e/...` already), no changes to tool production code.
-- **Context pack:** `test/e2e/testmain_test.go`, `test/e2e/envs/loader.go` (KeyPool, summary.json fields, contract handles), `test/e2e/removeger_test.go`, `test/e2e/bridge_utils.go`, `.github/workflows/test-go-e2e.yml`, S1 config schema.
+- **Context pack:** `test/e2e/testmain_test.go`, `test/e2e/envs/loader.go` (KeyPool, summary.json fields, contract handles), `test/e2e/removeger_test.go`, `test/e2e/bridge_utils.go`, `.github/workflows/aggkit-test-go-e2e.yml`, S1 config schema.
 - **Acceptance criteria:**
   - `go test -v -timeout 30m -run TestForceGERUpdateE2E ./test/e2e/...` passes locally with the docker-compose env up (document the exact command in the test header comment).
   - The test proves causality: the new GER update's tx `From` == tool sender address and input starts with `0x240ff378`.
@@ -279,7 +279,7 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
   `UpdateL1InfoTree` block 394, sender `0xD8F3183D...` (pool key) matched; in-flight guard fired
   ("already in flight, skipping" ×2). **Orchestrator-verified in main checkout:** `go vet
   ./test/e2e/...` exit 0, `go test -c -o /dev/null ./test/e2e/` compiles, no lint finding mentions
-  the file, uses `L1Keys.Checkout()` (not a shared special key). CI: `.github/workflows/test-go-e2e.yml`
+  the file, uses `L1Keys.Checkout()` (not a shared special key). CI: `.github/workflows/aggkit-test-go-e2e.yml`
   already globs `./test/e2e/...` — no workflow change needed.
   **POSTTEST characterization (resolved, NOT a defect):** the `go test` *package* exit was FAIL
   because `TestMain`'s global post-test L1↔L2 bridge health-check timed out (10-min loop) on L2→L1
@@ -337,7 +337,7 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
 - **Dependencies:** S5, S6, S9
 - **Model:** haiku, low effort (tool-heavy command execution + faithful summarization; no design judgment needed).
 - **Log:** Run by orchestrator (report-only, no writes/commits — group-B worktrees already merged by
-  file-copy in S5/S6/S9). golangci-lint v2.4.0 (matches CI `.github/workflows/lint.yml`). **Battery
+  file-copy in S5/S6/S9). golangci-lint v2.4.0 (matches CI `.github/workflows/aggkit-lint.yml`). **Battery
   results (all exit 0):**
   - `make build` → exit 0. `make build-tools` → exit 0; `target/` has all 6 tools incl.
     `force_ger_update`.
@@ -426,13 +426,13 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
 ### S10 — Run the Tier-2 e2e isolated on its own CI runner (added 2026-07-20, user request)
 
 - **Status:** done
-- **Goal:** Make `TestForceGERUpdateE2E` **actually run in CI**, but on a **dedicated, isolated job/runner** so it (a) is not skipped in CI, yet (b) does not interfere with the main e2e suite and is not broken by the shared post-test bridge health check. Context (verified 2026-07-20): `make test-e2e` = `go test -v -timeout 30m ./test/e2e/...` runs ALL tests in ONE process against ONE shared `op-pp` docker-compose env; `test/e2e/testmain_test.go` `TestMain` runs a post-test L1↔L2 bridge health check after `m.Run()` **only when `code == 0`**, and a GER-manipulating test leaves the L2→L1 flow unable to settle → post-test `log.Fatalf` (this is exactly why `removeger_test.go:46,52,71` and currently `forcegerupdate_test.go:320` `t.Skip`). The existing precedent `.github/workflows/test-e2e-exit_cenrtificate_tool.yml` isolates a tool's e2e in its own job/runner (own env), path-triggered. Implement (env-var contract — pick clear names, document them):
+- **Goal:** Make `TestForceGERUpdateE2E` **actually run in CI**, but on a **dedicated, isolated job/runner** so it (a) is not skipped in CI, yet (b) does not interfere with the main e2e suite and is not broken by the shared post-test bridge health check. Context (verified 2026-07-20): `make test-e2e` = `go test -v -timeout 30m ./test/e2e/...` runs ALL tests in ONE process against ONE shared `op-pp` docker-compose env; `test/e2e/testmain_test.go` `TestMain` runs a post-test L1↔L2 bridge health check after `m.Run()` **only when `code == 0`**, and a GER-manipulating test leaves the L2→L1 flow unable to settle → post-test `log.Fatalf` (this is exactly why `removeger_test.go:46,52,71` and currently `forcegerupdate_test.go:320` `t.Skip`). The existing precedent `.github/workflows/aggkit-test-e2e-exit-certificate-tool.yml` isolates a tool's e2e in its own job/runner (own env), path-triggered. Implement (env-var contract — pick clear names, document them):
   1. **`test/e2e/forcegerupdate_test.go`** — replace the *unconditional* `t.Skip` at the top of `TestForceGERUpdateE2E` with an **env-gated** skip: run the test only when a dedicated env var is set (e.g. `RUN_FORCE_GER_UPDATE_E2E=true`), otherwise `t.Skip` (keep the existing `-short` skip). This preserves "skipped in the normal `make test-e2e` suite → no interference," while letting the dedicated job opt in.
   2. **`test/e2e/testmain_test.go`** — add an **opt-in** env var (e.g. `E2E_SKIP_POSTTEST_BRIDGE_CHECK=true`) that skips ONLY the post-test bridge health-check block. Default (unset) = current behavior, so no other test/job is affected. Rationale in a code comment: GER-manipulating e2e tests legitimately leave that global check unhealthy (same reason removeger skips), so the dedicated job disables it.
   3. **`Makefile`** — add a target (e.g. `test-e2e-force_ger_update`) that runs `RUN_FORCE_GER_UPDATE_E2E=true E2E_SKIP_POSTTEST_BRIDGE_CHECK=true go test -v -timeout 30m -run TestForceGERUpdateE2E ./test/e2e/...` (parity with the per-tool convention; makes the isolated run reproducible locally and callable from CI).
-  4. **CI** — add a **dedicated job/runner** that runs only this test with those env vars against its own `op-pp` env. Preferred: a NEW job in `.github/workflows/test-go-e2e.yml` that `needs: [build-docker-image, pull-docker-images]` and reuses the same image artifacts + docker-load steps as the existing `test-go-e2e` job, but whose run step calls `make test-e2e-force_ger_update` (a separate job = a separate runner, isolated env, and the main `test-go-e2e` job is untouched). A standalone workflow file is acceptable only if it cleanly reuses/rebuilds the images; do NOT duplicate the whole image pipeline if a job in the existing workflow reuses the artifacts.
+  4. **CI** — add a **dedicated job/runner** that runs only this test with those env vars against its own `op-pp` env. Preferred: a NEW job in `.github/workflows/aggkit-test-go-e2e.yml` that `needs: [build-docker-image, pull-docker-images]` and reuses the same image artifacts + docker-load steps as the existing `test-go-e2e` job, but whose run step calls `make test-e2e-force_ger_update` (a separate job = a separate runner, isolated env, and the main `test-go-e2e` job is untouched). A standalone workflow file is acceptable only if it cleanly reuses/rebuilds the images; do NOT duplicate the whole image pipeline if a job in the existing workflow reuses the artifacts.
 - **Non-goals:** No changes to tool production code (`config.go/types.go/monitor.go/sender.go/run.go`); do NOT un-skip the test for the *main* suite (it must stay skipped there so the shared post-test check is never perturbed by it); no rewrite of the exit_certificate harness; do not touch other tools' tests.
-- **Context pack:** `.github/workflows/test-go-e2e.yml` (the build/pull/load artifact pipeline + the `test-go-e2e` job to mirror), `.github/workflows/test-e2e-exit_cenrtificate_tool.yml` (per-tool isolation precedent), `test/e2e/testmain_test.go` (TestMain + post-test check, ~lines 46-113), `test/e2e/forcegerupdate_test.go` (the `t.Skip` at ~line 320 and `testForceGERUpdateE2E` body), `test/e2e/removeger_test.go` (skip precedent + comment), `Makefile:145-147` (`test-e2e` target).
+- **Context pack:** `.github/workflows/aggkit-test-go-e2e.yml` (the build/pull/load artifact pipeline + the `test-go-e2e` job to mirror), `.github/workflows/aggkit-test-e2e-exit-certificate-tool.yml` (per-tool isolation precedent), `test/e2e/testmain_test.go` (TestMain + post-test check, ~lines 46-113), `test/e2e/forcegerupdate_test.go` (the `t.Skip` at ~line 320 and `testForceGERUpdateE2E` body), `test/e2e/removeger_test.go` (skip precedent + comment), `Makefile:145-147` (`test-e2e` target).
 - **Acceptance criteria:**
   - The main `test-go-e2e` job / `make test-e2e` behavior is **unchanged**: `TestForceGERUpdateE2E` still skips there (verify: `go test -v -run TestForceGERUpdateE2E ./test/e2e/...` with no env vars set → `--- SKIP`).
   - With the gate set, the test is selected: `RUN_FORCE_GER_UPDATE_E2E=true go test -v -short -run TestForceGERUpdateE2E ./test/e2e/...` no longer SKIPs on the env-gate line (it will still `-short`-skip in short mode, or attempt to run without `-short`); demonstrate the gate flips via the skip-line disappearing (a full live run needs the env and is exercised by CI, not required here).
@@ -451,7 +451,7 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
   legitimately leave the check unhealthy — default (unset) behavior is byte-identical to before.
   `Makefile` — new `.PHONY test-e2e-force_ger_update` target next to `test-e2e` running
   `RUN_FORCE_GER_UPDATE_E2E=true E2E_SKIP_POSTTEST_BRIDGE_CHECK=true go test -v -timeout 30m -run
-  TestForceGERUpdateE2E ./test/e2e/...`. `.github/workflows/test-go-e2e.yml` — new job
+  TestForceGERUpdateE2E ./test/e2e/...`. `.github/workflows/aggkit-test-go-e2e.yml` — new job
   `test-go-e2e-force-ger-update` (name "Run force_ger_update E2E (isolated)", `timeout-minutes: 45`)
   mirroring `test-go-e2e`'s checkout/setup-go@v6(1.25.7)/docker-compose install/download both image
   artifacts/docker-load steps, `needs: [build-docker-image, pull-docker-images]`, final step `run:
@@ -476,7 +476,7 @@ You are the **main agent**. You do not implement steps yourself — you dispatch
     `-short` skip instead ("Skipping E2E test in short mode") — proves the gate flips.
   - AC3: `go vet ./test/e2e/...` exit 0; `go test -c -o <tmp> ./test/e2e/` exit 0; code read confirms
     `else if code == 0` branch is untouched logic-wise when the var is unset.
-  - AC4: `yq e '.' .github/workflows/test-go-e2e.yml` parses; new job's `needs:
+  - AC4: `yq e '.' .github/workflows/aggkit-test-go-e2e.yml` parses; new job's `needs:
     [build-docker-image, pull-docker-images]`; its only non-setup `run:` step is `make
     test-e2e-force_ger_update`; diff shows the existing `test-go-e2e` job is untouched (purely
     additive diff).
@@ -617,7 +617,7 @@ e2e was run live against the `op-pp` docker env (forced tx mined, `From` == tool
 - Wired into `Makefile` (`build-force_ger_update`, added to `build-tools`) and shipped in the
   Docker image at `/usr/local/bin/force_ger_update`.
 - CI: the Tier-2 real-network e2e (`TestForceGERUpdateE2E`) now runs in CI on its own dedicated,
-  isolated job/runner (`test-go-e2e-force-ger-update` in `.github/workflows/test-go-e2e.yml`)
+  isolated job/runner (`test-go-e2e-force-ger-update` in `.github/workflows/aggkit-test-go-e2e.yml`)
   instead of being permanently skipped, so it is exercised automatically without risking the shared
   `test-go-e2e` env/job.
 
@@ -647,7 +647,7 @@ e2e was run live against the `op-pp` docker env (forced tx mined, `From` == tool
     (`RUN_FORCE_GER_UPDATE_E2E=true`) so it stays skipped in the shared `make test-e2e` / main
     `test-go-e2e` CI job (avoiding interference with that job's shared post-test bridge health
     check), and instead runs automatically in CI on its own dedicated runner —
-    `test-go-e2e-force-ger-update`, a new job in `.github/workflows/test-go-e2e.yml` that reuses the
+    `test-go-e2e-force-ger-update`, a new job in `.github/workflows/aggkit-test-go-e2e.yml` that reuses the
     existing docker-image build/pull pipeline and calls `make test-e2e-force_ger_update`. That
     target sets both `RUN_FORCE_GER_UPDATE_E2E=true` and `E2E_SKIP_POSTTEST_BRIDGE_CHECK=true` (the
     latter opts the isolated job out of `TestMain`'s shared post-test L1↔L2 bridge health check,

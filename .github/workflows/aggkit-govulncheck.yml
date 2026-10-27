@@ -1,0 +1,58 @@
+name: Go Vulnerability Check
+
+on: [push]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect aggkit changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      aggkit: ${{ steps.filter.outputs.aggkit }}
+    steps:
+      # paths-filter needs a checkout for push events; on pull_request it uses the API.
+      # Other events (schedule, workflow_dispatch) are not supported by the filter and always run.
+      - name: Checkout code
+        if: github.event_name == 'push'
+        uses: actions/checkout@v5
+
+      - name: Filter paths
+        id: filter
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            aggkit:
+              - 'aggkit/**'
+              - '.github/workflows/aggkit-govulncheck.yml'
+
+  govulncheck_job:
+    needs: changes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.aggkit == 'true'
+    runs-on: ubuntu-latest
+    name: Run govulncheck
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          work-dir: aggkit
+      - uses: actions/setup-go@v5
+        with:
+          go-version-input: 1.25.7
+          go-package: ./...
+
+  ok:
+    name: Go Vulnerability Check ok
+    needs: [changes, govulncheck_job]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

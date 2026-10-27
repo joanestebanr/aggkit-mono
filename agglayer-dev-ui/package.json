@@ -8,7 +8,6 @@
     "node": ">=24"
   },
   "scripts": {
-    "prepare": "husky",
     "dev": "node ./scripts/syncPublicConfig.mjs && node ./scripts/writeVersionInfo.mjs && next dev",
     "build": "node ./scripts/syncPublicConfig.mjs && node ./scripts/writeVersionInfo.mjs && next build",
     "build:production": "cp .env.production .env.local && rm -f .env.staging && node ./scripts/syncPublicConfig.mjs && node ./scripts/writeVersionInfo.mjs && next build",

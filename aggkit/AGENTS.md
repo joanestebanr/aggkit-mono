@@ -30,7 +30,7 @@
 
 ## GitHub
 
-- To create a new PR use the template defined in [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
+- To create a new PR use the template defined in [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md)
 
 ## Types to use
 

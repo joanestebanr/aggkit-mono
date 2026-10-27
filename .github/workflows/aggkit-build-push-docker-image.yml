@@ -1,3 +1,4 @@
+# Disabled in the monorepo experiment: dispatch only. Re-enable once tag prefixes and secrets are defined.
 name: Build and Push Docker Image
 
 on:
@@ -38,6 +39,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Compute version stamp
+        id: version
+        run: |
+          # The docker build context (aggkit/) has no .git, so pass the version info explicitly.
+          echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+          echo "gitrev=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "gitbranch=$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(LANG=US date +'%a, %d %b %Y %X %z')" >> "$GITHUB_OUTPUT"
 
       - name: Prepare platform-safe variable
         id: platform_vars
@@ -83,13 +93,18 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: aggkit
+          file: aggkit/Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
           cache-from: type=gha,scope=${{ matrix.variant.description }}
           cache-to: type=gha,mode=max,scope=${{ matrix.variant.description }}
           build-args: |
             INCLUDE_SHELL=${{ matrix.variant.include_shell }}
+            VERSION=${{ steps.version.outputs.version }}
+            GITREV=${{ steps.version.outputs.gitrev }}
+            GITBRANCH=${{ steps.version.outputs.gitbranch }}
+            DATE=${{ steps.version.outputs.date }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true
 
       - name: Verify version in image

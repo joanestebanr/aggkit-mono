@@ -15,12 +15,13 @@
   "license": "LicenseRef-PolygonLabs-Source-Available",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agglayer/sdk.git"
+    "url": "git+https://github.com/joanestebanr/aggkit-mono.git",
+    "directory": "sdk"
   },
   "bugs": {
-    "url": "https://github.com/agglayer/sdk/issues"
+    "url": "https://github.com/joanestebanr/aggkit-mono/issues"
   },
-  "homepage": "https://github.com/agglayer/sdk#readme",
+  "homepage": "https://github.com/joanestebanr/aggkit-mono/tree/develop/sdk#readme",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -54,7 +55,6 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
-    "prepare": "husky",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
     "changelog:all": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "version": "npm run changelog && git add CHANGELOG.md"

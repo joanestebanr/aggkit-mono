@@ -94,8 +94,10 @@ KURTOSIS_REPO_PATH="${2:-}"
 E2E_REPO_PATH="${3:-}"
 
 PROJECT_ROOT="$PWD"
+# Monorepo root (holds .github/); aggkit lives in a subfolder of it.
+REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKFLOW_FILE="$PROJECT_ROOT/.github/workflows/test-e2e.yml"
+WORKFLOW_FILE="$REPO_ROOT/.github/workflows/aggkit-test-e2e.yml"
 KURTOSIS_CDK_REPO_URL="https://github.com/0xPolygon/kurtosis-cdk.git"
 E2E_REPO_URL="https://github.com/agglayer/e2e.git"
 
@@ -324,46 +326,46 @@ if [ "$KURTOSIS_REPO_PATH" != "-" ]; then
     case "$TEST_TYPE" in
     single-l2-network-op-succinct)
         jq -s '.[0] * .[1] * .[2]' \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_op_succinct_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_single_chain_op_succinct_args.json" > /tmp/single_op_succinct_args.json
+            "$REPO_ROOT/.github/test_e2e_op_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_op_succinct_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_single_chain_op_succinct_args.json" > /tmp/single_op_succinct_args.json
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file "/tmp/single_op_succinct_args.json" .
         ;;
     single-l2-network-op-succinct-aggoracle-committee)
         jq -s '.[0] * .[1] * .[2]' \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_op_succinct_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_single_chain_op_succinct_aggoracle_committee_args.json" > /tmp/single_aggoracle_committee_op_succinct.json
+            "$REPO_ROOT/.github/test_e2e_op_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_op_succinct_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_single_chain_op_succinct_aggoracle_committee_args.json" > /tmp/single_aggoracle_committee_op_succinct.json
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file "/tmp/single_aggoracle_committee_op_succinct.json" .
         ;;
     single-l2-network-op-pessimistic)
         jq -s '.[0] * .[1]' \
-        "$PROJECT_ROOT/.github/test_e2e_op_args_base.json" \
-        "$PROJECT_ROOT/.github/test_e2e_op_args_chain_1.json" > /tmp/single_op_pessimistic_args.json
+        "$REPO_ROOT/.github/test_e2e_op_args_base.json" \
+        "$REPO_ROOT/.github/test_e2e_op_args_chain_1.json" > /tmp/single_op_pessimistic_args.json
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/single_op_pessimistic_args.json .
         ;;
     multi-l2-networks-2-chains-op-pessimistic)
         jq -s '.[0] * .[1]' \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_chain_1.json" > /tmp/merged_args_1.json
+            "$REPO_ROOT/.github/test_e2e_op_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_op_args_chain_1.json" > /tmp/merged_args_1.json
         jq -s '.[0] * .[1]' \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_op_args_chain_2.json" > /tmp/merged_args_2.json
+            "$REPO_ROOT/.github/test_e2e_op_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_op_args_chain_2.json" > /tmp/merged_args_2.json
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/merged_args_1.json .
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/merged_args_2.json .
         ;;
     multi-l2-networks-3-chains-cdk-erigon-pessimistic)
         jq -s '.[0] * .[1]' \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" > /tmp/merged_args_1.json
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" > /tmp/merged_args_1.json
         jq -s '.[0] * .[1] * .[2]' \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
-             "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" \
-             "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_multi_chains_args_2.json" > /tmp/merged_args_2.json
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
+             "$REPO_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" \
+             "$REPO_ROOT/.github/test_e2e_cdk_erigon_multi_chains_args_2.json" > /tmp/merged_args_2.json
         jq -s '.[0] * .[1] * .[2]' \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" \
-            "$PROJECT_ROOT/.github/test_e2e_cdk_erigon_multi_chains_args_3.json" > /tmp/merged_args_3.json
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_args_base.json" \
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_custom_gas_token.json" \
+            "$REPO_ROOT/.github/test_e2e_cdk_erigon_multi_chains_args_3.json" > /tmp/merged_args_3.json
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/merged_args_1.json .
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/merged_args_2.json .
         kurtosis run --enclave "$ENCLAVE_NAME" --args-file /tmp/merged_args_3.json .

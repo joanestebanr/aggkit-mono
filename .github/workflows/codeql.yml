@@ -45,6 +45,7 @@ jobs:
       # Export dependencies
       - name: Export Go dependencies
         if: ${{ matrix.language == 'go' }}
+        working-directory: aggkit
         run: go mod tidy
 
       # Initializes the CodeQL tools for scanning.
@@ -56,6 +57,7 @@ jobs:
       # Build project
       - name: Build Go project
         if: ${{ matrix.language == 'go' }}
+        working-directory: aggkit
         run: make build-aggkit
 
       # Perform CodeQL Analysis

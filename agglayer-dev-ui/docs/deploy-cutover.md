@@ -29,7 +29,7 @@ plain `wrangler deploy` does not handle on its own:
    cutover plan is, it executes the moment this merges. I'd like the sequencing written
    down (SPEC coordination included) before this leaves draft."* A Cloudflare custom
    domain can only be bound to one worker at a time, and this repo's deploy trigger
-   (push to `main`, or `workflow_dispatch` — see `.github/workflows/deploy.yaml`) gives
+   (push to `main`, or `workflow_dispatch` — see `.github/workflows/devui-deploy.yml`) gives
    no pause between merge and the live attach attempt. Whether Cloudflare errors out or
    silently reassigns the domain on that first attach is exactly the ambiguity this
    runbook removes, by having the domain detached from the old worker *before* the new
@@ -60,7 +60,7 @@ between (see Section 2).
       that value is `http://127.0.0.1:8555/aggkitapi`, unusable once deployed).
       **Skip this and the deploy does not silently ship the placeholder** — the
       workflow's `Assert NEXT_PUBLIC_AGGKIT_PROXY secret is set` step
-      (`.github/workflows/deploy.yaml`) hard-fails with an `::error::` before
+      (`.github/workflows/devui-deploy.yml`) hard-fails with an `::error::` before
       `wrangler deploy` runs. That guard exists precisely so a missed secret shows up
       as a red CI run, not a live broken proxy — but it only helps if someone is
       watching the run (Section 2) and treats a red run as "cutover did not happen,"
@@ -88,7 +88,7 @@ between (see Section 2).
 
 ## 2. Merge-time sequencing
 
-The moment the PR merges to `main`, `.github/workflows/deploy.yaml`'s
+The moment the PR merges to `main`, `.github/workflows/devui-deploy.yml`'s
 `push: branches: [main]` trigger fires — there is no manual approval gate before the
 `build-and-deploy` job starts (`environment: production` restricts which secrets are
 available, but does not itself pause the run). In order, that job:
@@ -106,7 +106,7 @@ afterward — the whole point of pre-detaching the domain (Section 1) is to make
 land cleanly, and if it doesn't (the domain was not actually detached in time, the
 attach errors for an unrelated reason, etc.), the sooner it's caught the smaller the
 live-site gap. Watch the run at
-`https://github.com/agglayer/agglayer-dev-ui/actions/workflows/deploy.yaml`. If the
+`https://github.com/agglayer/agglayer-dev-ui/actions/workflows/devui-deploy.yml`. If the
 guard step fails, no domain change happened — reopen the PR issue, fix the secret,
 and re-run via `workflow_dispatch` once fixed (no need to re-merge).
 

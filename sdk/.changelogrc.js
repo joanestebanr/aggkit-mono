@@ -11,10 +11,10 @@ module.exports = {
     { type: 'build', section: 'Build System' },
     { type: 'ci', section: 'Continuous Integration' },
   ],
-  commitUrlFormat: 'https://github.com/agglayer/sdk/commit/{{hash}}',
+  commitUrlFormat: 'https://github.com/joanestebanr/aggkit-mono/commit/{{hash}}',
   compareUrlFormat:
-    'https://github.com/agglayer/sdk/compare/{{previousTag}}...{{currentTag}}',
-  issueUrlFormat: 'https://github.com/agglayer/sdk/issues/{{id}}',
+    'https://github.com/joanestebanr/aggkit-mono/compare/{{previousTag}}...{{currentTag}}',
+  issueUrlFormat: 'https://github.com/joanestebanr/aggkit-mono/issues/{{id}}',
   userUrlFormat: 'https://github.com/{{user}}',
   releaseCommitMessageFormat: 'chore(release): {{currentTag}}',
   header:

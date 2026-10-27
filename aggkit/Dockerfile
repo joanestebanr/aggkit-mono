@@ -15,6 +15,15 @@ RUN go mod download
 # Copy source and build
 COPY . .
 
+# Version stamp. The build context is the aggkit/ folder (no .git inside), so the caller passes
+# these values (see `make build-docker`). If they are empty, version.mk falls back to git when
+# a .git directory is available in the context.
+ARG VERSION=""
+ARG GITREV=""
+ARG GITBRANCH=""
+ARG DATE=""
+ENV VERSION="${VERSION}" GITREV="${GITREV}" GITBRANCH="${GITBRANCH}" DATE="${DATE}"
+
 # Compile binary
 RUN make build-aggkit build-aggkit-proxy build-tools
 

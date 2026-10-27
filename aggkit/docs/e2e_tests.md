@@ -82,7 +82,7 @@ assertions.
 
 #### CI matrix
 
-`.github/workflows/test-go-e2e.yml` runs the remove-GER tests on `anvil-2chains` in three dedicated matrix groups,
+`.github/workflows/aggkit-test-go-e2e.yml` runs the remove-GER tests on `anvil-2chains` in three dedicated matrix groups,
 so each group gets an isolated compose stack and cannot leak mutated chain state into the default group. The
 `anvil-2chains / default` group's regex explicitly excludes them (Go's `-run` has no negation syntax, so the
 default group is enumerated as a positive, anchored regex instead):
@@ -218,7 +218,7 @@ go test -v -run 'TestProxyAutoRegisterNewNetworks' -timeout 5m ./test/e2e
 
 #### CI matrix
 
-Both tests above run in their own dedicated `.github/workflows/test-go-e2e.yml` matrix group,
+Both tests above run in their own dedicated `.github/workflows/aggkit-test-go-e2e.yml` matrix group,
 `anvil-2chains` / `proxy-tracker-stateful`, separate from the `bridge` group: they rewrite `aggkit-proxy`'s
 bind-mounted config and restart it, and mutate L1 rollup-manager state, so they must not share a compose stack (or
 share L1 chain state) with the default bridge tests.

@@ -2,7 +2,7 @@
 
 This directory is the **source of truth for the aggkit config used by the
 kurtosis-cdk based Bats e2e** (the `agglayer/e2e` reusable workflows driven from
-`.github/workflows/test-e2e.yml`).
+`.github/workflows/aggkit-test-e2e.yml`).
 
 ## Files
 
@@ -28,7 +28,7 @@ PR and no pin bump for a config-only change.
 ## ⚠️ Invariant: seed from the pinned `KURTOSIS_CDK_COMMIT`
 
 These files are rendered by **the exact kurtosis-cdk commit pinned as
-`KURTOSIS_CDK_COMMIT` in `.github/workflows/test-e2e.yml`** — not `main`. Its
+`KURTOSIS_CDK_COMMIT` in `.github/workflows/aggkit-test-e2e.yml`** — not `main`. Its
 `_build_config_data` decides which render variables and `{{.sequencer_type}}`
 values exist, and the field set differs across kurtosis-cdk versions (e.g. the
 `op-geth` → `op-reth` sequencer-type rename, or fields like `ClaimL2Sync`).

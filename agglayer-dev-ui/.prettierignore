@@ -1,0 +1,6 @@
+*.md
+dist/
+out/
+.next/
+pnpm-lock.yaml
+public/

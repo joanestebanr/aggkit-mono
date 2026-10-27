@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect agglayer-dev-ui changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      devui: ${{ steps.filter.outputs.devui }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            devui:
+              - 'agglayer-dev-ui/**'
+              - '.github/workflows/devui-ci.yml'
+
+  ci:
+    name: CI - lint / typecheck / test
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.devui == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agglayer-dev-ui
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The shared composite action 0xPolygon/pipelines/.github/actions/ci
+      # takes no inputs and hardcodes root-relative paths (.nvmrc, pnpm
+      # install at the workspace root), so it cannot run from a subfolder.
+      # These explicit steps mirror what it does, scoped to agglayer-dev-ui/.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: agglayer-dev-ui/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: agglayer-dev-ui/.nvmrc
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: agglayer-dev-ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: '0'
+
+      - name: Validate config
+        run: pnpm run validate:config
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run --if-present typecheck
+
+      - name: Test
+        run: pnpm run --if-present test
+
+      # The runtime E2E key override (app/context/e2eAccount.ts) is only safe
+      # while NEXT_PUBLIC_E2E_ENABLED stays out of every production build
+      # surface. That guarantee is otherwise implicit (the app compares the
+      # var to the literal 'true' and every current surface simply omits it);
+      # this makes it explicit at review time. Pure node, no install needed.
+      - name: Assert production builds never enable E2E
+        run: node ./scripts/checkProdE2eOff.mjs
+
+  ci-ok:
+    name: CI ok
+    needs: [changes, ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if a required job failed or was cancelled
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | jq -e '[.[].result] | any(. == "failure" or . == "cancelled")' >/dev/null; then
+            echo "::error::a required job failed or was cancelled"
+            exit 1
+          fi

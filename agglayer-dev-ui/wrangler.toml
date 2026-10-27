@@ -1,0 +1,20 @@
+name = "agglayer-dev-ui"
+compatibility_date = "2024-07-04"
+placement = { mode = "smart" }
+workers_dev = false
+preview_urls = false
+send_metrics = false
+
+[assets]
+directory = "./out"
+
+[build]
+command = "pnpm run build:production"
+
+[env.production]
+routes = [
+  { pattern = "dev-ui.agglayer.dev", custom_domain = true }
+]
+
+[env.production.build]
+command = "pnpm run build:production"

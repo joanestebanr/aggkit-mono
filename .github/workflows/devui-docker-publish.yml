@@ -1,0 +1,272 @@
+# Disabled in the monorepo experiment: dispatch only. Re-enable once tag prefixes, secrets and environments are configured.
+# Builds and publishes ghcr.io/agglayer/agglayer-dev-ui.
+#
+# Triggers
+#   - `release: published`      -> REMOVED in the monorepo experiment (the
+#                                  release-path code below is kept but dormant).
+#   - `workflow_dispatch`       -> a single namespaced tag for an arbitrary
+#                                  branch/tag/sha, never touching semver or
+#                                  `latest`.
+#
+# Limitation (documented per plan acceptance criteria): the workflow_dispatch
+# *event itself* -- i.e. which ref you pick in the "Run workflow" button, or
+# pass to `gh workflow run --ref <ref>` / the REST API -- must be an existing
+# branch or tag. GitHub uses that ref to decide which version of this
+# workflow file to execute, and its API rejects a bare commit SHA there. This
+# is independent of the `ref` input below, which IS just a plain string
+# forwarded to `actions/checkout` and therefore does accept a full commit SHA
+# (as long as it is reachable with `fetch-depth: 0`, set below). Net effect:
+# to publish an arbitrary unreleased commit, push it to a branch or tag
+# first, dispatch the workflow against that ref, and pass whatever revision
+# you want built (branch, tag, or full SHA) as the `ref` input.
+#
+# Tagging scheme
+#   release, non-prerelease `vX.Y.Z` / `X.Y.Z`  -> X.Y.Z, X.Y, latest
+#   release, prerelease (GitHub flag or a
+#     semver `-suffix` such as `1.2.3-rc.1`)     -> X.Y.Z(-suffix) only
+#     (never X.Y, never latest -- neither tag should ever point at a
+#     pre-release build)
+#   workflow_dispatch                            -> dispatch-<ref>-<sha>-<run_id>
+#
+# Collision guard (this is the deliberate X-1 attack target -- see
+# plans/dev-ui-docker-ghcr-plan.md's X-1 item 7, "can a dispatch-built tag
+# overwrite a release semver tag, or move latest?"):
+#   Every dispatch tag carries the literal, hardcoded prefix "dispatch-".
+#   Every tag this workflow ever writes on the release path either matches
+#   ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?$ (a version tag) or is the
+#   literal string "latest" -- both start with a digit or the letter 'l',
+#   never with "dispatch-". No value of the sanitized ref, short SHA, or run
+#   ID -- however it is crafted -- can turn a "dispatch-..." string into one
+#   that starts with a digit or equals "latest", because string
+#   concatenation with a fixed non-empty, non-numeric prefix cannot produce
+#   a string lacking that prefix. That is a structural guarantee, not a
+#   runtime check that clever input could bypass. The "compute image tags"
+#   step below additionally asserts this at runtime and fails the job if it
+#   is ever violated -- defense-in-depth against a future edit that
+#   accidentally weakens or removes the prefix, not the primary guarantee.
+name: Build and Publish Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: >-
+          Branch, tag, or full commit SHA to build and publish (forwarded
+          verbatim to actions/checkout). See the workflow file header for
+          why this is NOT the same as the ref the workflow_dispatch event
+          itself must be fired against (which cannot be a bare SHA).
+        required: true
+        default: develop
+        type: string
+
+concurrency:
+  # Deliberately NOT `${{ github.ref }}`-scoped and NOT cancel-in-progress,
+  # unlike this repo's other workflows (devui-deploy.yml, devui-e2e.yml): a cancelled
+  # mid-push here could leave a partially written manifest or tag in GHCR.
+  # Overlapping runs (e.g. a release publish and a manual dispatch at the
+  # same time) queue and run strictly serially instead of racing or
+  # cancelling each other mid-push.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY_IMAGE: ghcr.io/agglayer/agglayer-dev-ui
+
+jobs:
+  build-and-publish:
+    name: Build, publish, and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout agglayer-dev-ui
+        uses: actions/checkout@v4
+        with:
+          # Release events already check out the tag that triggered the
+          # release; only override ref for workflow_dispatch. fetch-depth: 0
+          # so an arbitrary SHA passed as the `ref` input is resolvable.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || '' }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve build metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          # NOTE: in the monorepo this is the monorepo commit SHA.
+          echo "built_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute image tags
+        id: tags
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          DISPATCH_REF: ${{ inputs.ref }}
+          BUILT_SHA: ${{ steps.meta.outputs.built_sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            # --- release path: X.Y.Z, X.Y, latest (see header comment) -------
+            VERSION="${RELEASE_TAG#v}"
+
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::release tag '$RELEASE_TAG' is not a semver tag (expected X.Y.Z or vX.Y.Z, optionally with a -prerelease suffix); refusing to publish a non-semver tag to GHCR" >&2
+              exit 1
+            fi
+
+            MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
+
+            if [ "$RELEASE_PRERELEASE" = "true" ] || [[ "$VERSION" == *-* ]]; then
+              TAGS="$REGISTRY_IMAGE:$VERSION"
+            else
+              # printf + separate args, NOT a literal multi-line quoted
+              # string -- the latter would bake this script's own YAML
+              # indentation in as leading whitespace on the continuation
+              # lines, corrupting the newline-separated tag list.
+              TAGS="$(printf '%s\n%s\n%s' \
+                "$REGISTRY_IMAGE:$VERSION" \
+                "$REGISTRY_IMAGE:$MAJOR_MINOR" \
+                "$REGISTRY_IMAGE:latest")"
+            fi
+          else
+            # --- workflow_dispatch path: a namespaced, non-colliding tag ------
+            # See the workflow file header comment for the full explanation
+            # of why the hardcoded "dispatch-" prefix alone guarantees no
+            # collision with the release-path namespace.
+            SAFE_REF="$(printf '%s' "$DISPATCH_REF" | tr -c 'A-Za-z0-9_.-' '-' | cut -c1-40)"
+            DISPATCH_TAG="dispatch-${SAFE_REF}-${BUILT_SHA}-${RUN_ID}"
+
+            # Runtime assertion (defense-in-depth, not the primary
+            # guarantee -- see header comment).
+            if [[ "$DISPATCH_TAG" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || [ "$DISPATCH_TAG" = "latest" ]; then
+              echo "::error::computed dispatch tag '$DISPATCH_TAG' unexpectedly collides with the semver/latest namespace -- refusing to publish" >&2
+              exit 1
+            fi
+
+            TAGS="$REGISTRY_IMAGE:$DISPATCH_TAG"
+            # No clean semver exists on this path -- the dispatch tag itself
+            # is the closest thing to "the version" and is what a human
+            # would look at to identify the build, so it doubles as the
+            # baked public/version.json `version` value (see "version" output
+            # below, consumed as the DEV_UI_BUILD_VERSION build-arg).
+            VERSION="$DISPATCH_TAG"
+          fi
+
+          {
+            echo "tags<<EOF_TAGS"
+            echo "$TAGS"
+            echo "EOF_TAGS"
+          } >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved tags:"
+          echo "$TAGS"
+          echo "Resolved version: $VERSION"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        # Enables an emulated linux/arm64 build on this amd64 ubuntu-latest
+        # runner. D-3 (plans/dev-ui-docker-ghcr/d3-ci-capabilities.md §1)
+        # could not confirm that the org's arm-runner-2204/amd-runner-2204
+        # self-hosted runner pool (which agglayer/aggkit's own workflow
+        # targets) is reachable from agglayer-dev-ui -- every availability
+        # check (org-level runners, dev-ui repo-level runners) 403'd with
+        # this token's WRITE-only privileges, and aggkit's own repo-level
+        # runner list is empty (the labels are org-scoped, not
+        # repo-registered). Per D-3's explicit fallback guidance, this
+        # workflow uses ubuntu-latest + QEMU instead of assuming those
+        # runner labels resolve for this repo. A native per-arch
+        # runner + digest-merge job (aggkit's pattern) remains a faster,
+        # available upgrade once a human with org-admin access confirms
+        # agglayer-dev-ui's runner-group membership.
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          # Monorepo: build context is the agglayer-dev-ui/ subfolder.
+          context: agglayer-dev-ui
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          # Threads the commit/version this job already resolved (for
+          # image tagging) into the baked public/version.json, via the
+          # Dockerfile's DEV_UI_BUILD_COMMIT/DEV_UI_BUILD_VERSION args --
+          # without these the app-builder stage has no .git and falls back
+          # to "unknown" / package.json's untouched placeholder version.
+          build-args: |
+            DEV_UI_BUILD_COMMIT=${{ steps.meta.outputs.built_sha }}
+            DEV_UI_BUILD_VERSION=${{ steps.tags.outputs.version }}
+
+      - name: Verify published manifest
+        run: docker buildx imagetools inspect "${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}"
+
+      - name: Smoke test pushed image
+        run: |
+          set -euo pipefail
+          IMAGE_REF="${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}"
+
+          docker run -d --name devui-smoke -p 8080:80 "$IMAGE_REF"
+
+          ready=""
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:8080/; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::container never became ready on http://localhost:8080/" >&2
+            docker logs devui-smoke >&2 || true
+            exit 1
+          fi
+
+          root_status="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/)"
+          if [ "$root_status" != "200" ]; then
+            echo "::error::expected HTTP 200 from /, got $root_status" >&2
+            docker logs devui-smoke >&2 || true
+            exit 1
+          fi
+
+          config_status="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/config.json)"
+          if [ "$config_status" != "200" ]; then
+            echo "::error::expected HTTP 200 from /config.json, got $config_status" >&2
+            docker logs devui-smoke >&2 || true
+            exit 1
+          fi
+
+          # Guards against the DEV_UI_BUILD_COMMIT/DEV_UI_BUILD_VERSION
+          # build-args above silently regressing back to the Dockerfile's
+          # "unknown" / package.json fallback -- assert the baked
+          # /version.json actually carries the values this job resolved.
+          expected_commit="${{ steps.meta.outputs.built_sha }}"
+          expected_version="${{ steps.tags.outputs.version }}"
+          version_json="$(curl -fsS http://localhost:8080/version.json)"
+          actual_commit="$(echo "$version_json" | jq -r '.commit')"
+          actual_version="$(echo "$version_json" | jq -r '.version')"
+          if [ "$actual_commit" != "$expected_commit" ] || [ "$actual_version" != "$expected_version" ]; then
+            echo "::error::published /version.json does not match this build -- expected commit=$expected_commit version=$expected_version, got $version_json" >&2
+            docker logs devui-smoke >&2 || true
+            exit 1
+          fi
+
+          echo "Smoke test passed: / -> $root_status, /config.json -> $config_status, /version.json -> $version_json"
+          docker logs devui-smoke
+          docker rm -f devui-smoke

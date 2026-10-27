@@ -1,0 +1,77 @@
+import type { TransactionStatus } from '@/app/types/transaction';
+
+import { cn } from '@/app/utils/common';
+import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+
+interface TransactionStatusBadgeProps {
+  status: TransactionStatus;
+  className?: string;
+  // Overrides `status`'s usual label/icon with a neutral loading state --
+  // used right after a successful claim, while the row still reports its
+  // pre-claim status (typically READY_TO_CLAIM) because the next activity
+  // poll hasn't landed yet. See transactionsView.tsx's
+  // pendingClaimConfirmationIds.
+  isConfirming?: boolean;
+}
+
+const STATUS_CONFIG: Record<
+  TransactionStatus,
+  { label: string; icon: React.ReactNode; variant: 'success' | 'warning' | 'info' | 'pending' }
+> = {
+  CLAIMED: {
+    label: 'Completed',
+    icon: <CheckCircle size={16} />,
+    variant: 'success'
+  },
+  READY_TO_CLAIM: {
+    label: 'Ready to claim',
+    icon: <CheckCircle size={16} />,
+    variant: 'info'
+  },
+  PENDING: {
+    label: 'Pending',
+    icon: <Loader2 size={16} className="animate-spin" />,
+    variant: 'warning'
+  },
+  ERROR: {
+    label: 'Needs attention',
+    icon: <AlertTriangle size={16} />,
+    variant: 'warning'
+  }
+};
+
+const VARIANT_STYLES = {
+  success: 'bg-green-light text-green border-green',
+  info: 'bg-blue-subtle text-blue border-blue',
+  warning: 'bg-orange/10 text-orange border-orange/20',
+  pending: 'bg-grey-light text-black border-border'
+};
+
+export const TransactionStatusBadge = ({
+  status,
+  className,
+  isConfirming
+}: TransactionStatusBadgeProps) => {
+  const config = isConfirming
+    ? {
+        label: 'Updating status…',
+        icon: <Loader2 size={16} className="animate-spin" />,
+        variant: 'pending' as const
+      }
+    : STATUS_CONFIG[status];
+  const variantStyle = VARIANT_STYLES[config.variant];
+
+  return (
+    <div
+      data-test-id="transaction-status"
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold',
+        variantStyle,
+        className
+      )}
+    >
+      {config.icon}
+      <span>{config.label}</span>
+    </div>
+  );
+};

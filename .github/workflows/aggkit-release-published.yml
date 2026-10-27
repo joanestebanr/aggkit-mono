@@ -1,0 +1,14 @@
+# Disabled in the monorepo experiment: dispatch only. Re-enable once tag prefixes and secrets are defined.
+name: Release Notification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        uses: agglayer/gha-notify-release@v1
+        with:
+          slack-bot-token: ${{ secrets.SLACK_APP_TOKEN_AGGLAYER_NOTIFY_RELEASE }}

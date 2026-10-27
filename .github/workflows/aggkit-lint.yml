@@ -1,0 +1,70 @@
+name: Lint
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - update-external-dependencies
+      - 'release/**'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect aggkit changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      aggkit: ${{ steps.filter.outputs.aggkit }}
+    steps:
+      # paths-filter needs a checkout for push events; on pull_request it uses the API.
+      # Other events (schedule, workflow_dispatch) are not supported by the filter and always run.
+      - name: Checkout code
+        if: github.event_name == 'push'
+        uses: actions/checkout@v5
+
+      - name: Filter paths
+        id: filter
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            aggkit:
+              - 'aggkit/**'
+              - '.github/workflows/aggkit-lint.yml'
+
+  lint:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.aggkit == 'true'
+    runs-on: amd-runner-2204
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.9
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8.0.0
+        with:
+          version: v2.14.0
+          working-directory: aggkit
+          args: --timeout=30m
+          skip-cache: true  # the action's cache key doesn't change across golangci-lint versions (v2.4.0 -> v2.14.0 reused the same key), poisoning results
+
+  ok:
+    name: Lint ok
+    needs: [changes, lint]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

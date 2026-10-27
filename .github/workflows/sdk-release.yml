@@ -1,0 +1,301 @@
+# Disabled until npm trusted publisher is re-registered for the monorepo repo + this workflow filename and tag prefix is agreed.
+name: SDK Release Packages
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'NPM dist-tag channel to publish to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - alpha
+          - beta
+          - latest
+      ref:
+        description: 'Branch, tag, or commit SHA to release from (any ref for dev/alpha/beta; must be main for latest)'
+        required: false
+        default: 'main'
+      force:
+        description: 'Force release even if version exists'
+        required: false
+        default: false
+        type: boolean
+      use_package_version:
+        description: 'Publish dev/alpha/beta with the exact version from package.json instead of a generated <channel>.<timestamp>.<sha> one (no effect on latest)'
+        required: false
+        default: false
+        type: boolean
+
+defaults:
+  run:
+    working-directory: sdk
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release + tag
+      id-token: write # OIDC trusted publishing — npm exchanges a short-lived token, no secret needed
+    steps:
+      - name: Validate Inputs
+        run: |
+          echo "🔍 Validating release inputs..."
+
+          # Only the 'latest' (stable) channel is restricted to main. Pre-release
+          # channels (dev/alpha/beta) can be published from any branch, tag, or
+          # commit SHA, so development versions don't require merging to main.
+          if [[ "${{ github.event.inputs.channel }}" == "latest" && "${{ github.event.inputs.ref }}" != "main" ]]; then
+              echo "❌ Error: 'latest' channel can ONLY be released from 'main'"
+              echo "🚫 Stable releases are restricted to main only"
+              exit 1
+          fi
+
+          echo "✅ Input validation passed"
+          echo "📦 Channel: ${{ github.event.inputs.channel }}"
+          echo "🌿 Ref: ${{ github.event.inputs.ref }}"
+          echo "💪 Force: ${{ github.event.inputs.force }}"
+          echo "📌 Use package version: ${{ github.event.inputs.use_package_version }}"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref || 'main' }}
+
+      # Bun runs install, quality checks, build and tests.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.x
+
+      # Node + the npm CLI are required for OIDC trusted publishing and staged
+      # releases — bun cannot perform npm's OIDC token exchange. registry-url is
+      # what wires npm up to the public registry; no auth token is configured.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm CLI
+        run: |
+          echo "⬆️ Upgrading npm to guarantee trusted-publishing + staging support..."
+          # Trusted publishing needs npm >= 11.5.1; staged publishing needs >= 11.15.0.
+          npm install -g npm@latest
+          echo "📦 npm version: $(npm --version)"
+
+      - name: Install Dependencies
+        run: |
+          echo "📦 Installing dependencies..."
+          bun install --frozen-lockfile
+          echo "✅ Dependencies installed"
+
+      - name: Run Quality Checks
+        run: |
+          echo "🔍 Running quality checks..."
+
+          # Type checking
+          echo "📝 Type checking..."
+          bun run typecheck
+
+          # Linting
+          echo "🧹 Linting..."
+          bun run lint
+
+          # Format checking
+          echo "💅 Format checking..."
+          bun run format:check
+
+          echo "✅ Quality checks passed"
+
+      - name: Build Packages
+        run: |
+          echo "🏗️ Building packages..."
+          bun run build
+
+          # Verify build output
+          if [[ ! -d "dist" ]]; then
+              echo "❌ Error: Build output directory 'dist' not found"
+              exit 1
+          fi
+
+          echo "✅ Packages built successfully"
+
+      - name: Run Tests
+        run: |
+          echo "🧪 Running tests..."
+          bun run test:run
+
+          # Run coverage if available
+          if bun run test:coverage 2>/dev/null; then
+              echo "📊 Test coverage generated"
+          fi
+
+          echo "✅ All tests passed"
+
+      - name: Compute Pre-release Version
+        if: ${{ github.event.inputs.channel != 'latest' && github.event.inputs.use_package_version != 'true' }}
+        run: |
+          echo "🏷️ Computing a unique version for this pre-release build..."
+
+          # Dev/alpha/beta builds are published ad hoc from arbitrary branches,
+          # tags, or commits, often multiple times without anyone bumping
+          # package.json. Suffix the base version with the channel, a timestamp,
+          # and the short SHA so every dispatch gets its own installable version
+          # and never collides with a previous staged build on the same channel.
+          BASE_VERSION=$(node -p "require('./package.json').version.split('-')[0]")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          NEW_VERSION="${BASE_VERSION}-${{ github.event.inputs.channel }}.${TIMESTAMP}.${SHORT_SHA}"
+
+          npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+          echo "✅ Computed version: $NEW_VERSION"
+
+      - name: Validate Package Version For Channel
+        if: ${{ github.event.inputs.channel != 'latest' && github.event.inputs.use_package_version == 'true' }}
+        run: |
+          CHANNEL="${{ github.event.inputs.channel }}"
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Publishing package.json's version verbatim to a pre-release channel
+          # must not burn a stable version number (e.g. 1.0.0 under 'beta') or
+          # mislabel a build (e.g. a -beta.N version under 'dev').
+          if [[ "$CURRENT_VERSION" != *"-$CHANNEL."* ]]; then
+              echo "❌ Error: package.json version $CURRENT_VERSION does not match channel '$CHANNEL'"
+              echo "💡 Expected a version like <x.y.z>-$CHANNEL.<n>"
+              exit 1
+          fi
+
+          echo "✅ Version $CURRENT_VERSION matches channel '$CHANNEL'"
+
+      - name: Check Existing Version
+        if: ${{ (github.event.inputs.channel == 'latest' || github.event.inputs.use_package_version == 'true') && github.event.inputs.force != 'true' }}
+        run: |
+          echo "🔍 Checking if version already exists on NPM..."
+
+          # `npm view` is a public read — no authentication required.
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "📦 Current version: $CURRENT_VERSION"
+
+          # Look up the exact version, not whatever the dist-tag currently points
+          # at: a version is unique across all tags and can never be republished.
+          if [[ -n "$(npm view "@agglayer/sdk@$CURRENT_VERSION" version 2>/dev/null)" ]]; then
+              echo "❌ Error: Version $CURRENT_VERSION is already published on NPM"
+              echo "💡 Use 'force: true' to override this check"
+              exit 1
+          fi
+
+          # The GitHub release is created after staging, so catch an existing
+          # tag now rather than after the package has already been staged.
+          if git ls-remote --exit-code --tags origin "refs/tags/sdk-v$CURRENT_VERSION" >/dev/null; then
+              echo "❌ Error: Git tag sdk-v$CURRENT_VERSION already exists"
+              echo "💡 Delete the tag/release or use 'force: true' to override this check"
+              exit 1
+          fi
+
+          echo "✅ Version $CURRENT_VERSION is available for release"
+
+      - name: Stage Publish to NPM
+        run: |
+          echo "🚀 Staging release via trusted publishing (OIDC)..."
+
+          # Set release channel
+          DIST_TAG="${{ github.event.inputs.channel }}"
+          echo "📦 Staging to channel: $DIST_TAG"
+
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "📋 Current version: $CURRENT_VERSION"
+
+          # Staged publishing: the package is uploaded to a staging queue instead
+          # of going live. A maintainer must approve it with a 2FA challenge
+          # before it becomes publicly installable. Authentication is handled by
+          # OIDC — there is no NPM_TOKEN. Provenance is generated automatically
+          # when publishing from a trusted GitHub Actions workflow.
+          echo "📝 Staging package to NPM..."
+          npm stage publish --tag "$DIST_TAG"
+
+          echo "✅ Package staged successfully — pending maintainer approval"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIST_TAG="${{ github.event.inputs.channel }}"
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Set release notes based on channel
+          case "$DIST_TAG" in
+              "latest")
+                  RELEASE_NOTES="🚀 Stable release"
+                  ;;
+              "beta")
+                  RELEASE_NOTES="🧪 Beta release - testing phase"
+                  ;;
+              "dev")
+                  RELEASE_NOTES="🔧 Development release - experimental features"
+                  ;;
+              "alpha")
+                  RELEASE_NOTES="⚡ Alpha release - early access features"
+                  ;;
+          esac
+
+          PRERELEASE_FLAG=()
+          if [[ "$DIST_TAG" != "latest" ]]; then
+              PRERELEASE_FLAG=(--prerelease)
+          fi
+
+          # --target needs a branch name or full commit SHA (a tag name isn't
+          # accepted), so resolve whatever ref was checked out to its SHA.
+          TARGET_SHA=$(git rev-parse HEAD)
+
+          echo "📝 Creating GitHub release..."
+          gh release create "sdk-v$CURRENT_VERSION" \
+            --title "SDK Release sdk-v$CURRENT_VERSION" \
+            --notes "$RELEASE_NOTES" \
+            --target "$TARGET_SHA" \
+            "${PRERELEASE_FLAG[@]}"
+
+          echo "✅ GitHub release created"
+
+      - name: Staging Summary
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          echo "⏳ Release v$CURRENT_VERSION is STAGED and pending approval"
+          echo "=================================================="
+          echo "The package has been uploaded to NPM's staging queue but is NOT"
+          echo "yet publicly installable. A maintainer must approve it with a 2FA"
+          echo "challenge to release it:"
+          echo ""
+          echo "  • Web:  https://www.npmjs.com/package/@agglayer/sdk"
+          echo "  • CLI:  run 'npm stage --help' for the approval commands"
+          echo ""
+          echo "Once approved, install with:"
+          echo "  npm install @agglayer/sdk@${{ github.event.inputs.channel }}"
+          echo "=================================================="
+
+      - name: Create Release Summary
+        if: always()
+        run: |
+          echo "📋 Release Summary"
+          echo "=================="
+          echo "Channel: ${{ github.event.inputs.channel }}"
+          echo "Ref: ${{ github.event.inputs.ref }}"
+          echo "Force: ${{ github.event.inputs.force }}"
+          echo "Use package version: ${{ github.event.inputs.use_package_version }}"
+          echo "=================="
+
+          if [[ "${{ job.status }}" == "success" ]]; then
+              echo "🎉 Release staged successfully — awaiting maintainer approval!"
+          else
+              echo "❌ Release failed. Check the logs above for details."
+          fi
+
+      - name: Failure Notice
+        if: failure()
+        run: |
+          echo "🔄 Release workflow failed"
+          echo "ℹ️  Staged publishing means nothing is public until a maintainer"
+          echo "    approves it, so a failed run does not expose a partial release."
+          echo "📝 If a GitHub release/tag was created before the failure, remove it"
+          echo "    manually if you do not intend to retry this version."
